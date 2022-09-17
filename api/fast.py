@@ -9,6 +9,7 @@ import wave
 import math
 import struct
 from scipy import fromstring, int16
+from tempfile import NamedTemporaryFile
 
 app = FastAPI()
 
@@ -25,13 +26,13 @@ app.add_middleware(
 # functions
 # convert mp4 to wav
 def get_wav(org_file):
-    if org_file.endwith('.wav'):
-        wavf = org_file
-    else:
-        stream = ffmpeg.input(org_file)
-        stream = ffmpeg.output(stream, 'audio.wav')
-        ffmpeg.run(stream, overwrite_output=True)
-        wavf = 'audio.wav'
+    #if org_file.endwith('.wav'):
+    #wavf = org_file
+    #else:
+    stream = ffmpeg.input(org_file)
+    stream = ffmpeg.output(stream, 'audio.wav')
+    ffmpeg.run(stream, overwrite_output=True)
+    wavf = 'audio.wav'
 
     return wavf
 
@@ -55,7 +56,7 @@ def cut_wav(wavf):
 
     outf_list = []
     for i in range(num_cut):
-        output_dir = 'output/cut_wav/'
+        #output_dir = 'output/cut_wav/'
         outf = 'output/' + str(i) + '.wav'
         start_cut = i * frames
         end_cut = i * frames + frames
@@ -104,8 +105,29 @@ def index():
 
 @app.post("/convert_test/")
 async def get_wav_only(file: UploadFile = File(...)):
-    wavf = get_wav(file)
-    return wavf
+    temp = NamedTemporaryFile(delete=False)
+    try:
+        try:
+            contents = file.file.read()
+            with temp as f:
+                f.write(contents)
+        except Exception:
+            return {"message": "There was an error uploading the file"}
+        finally:
+            file.file.close()
+
+        res = get_wav(temp.name)  # Pass temp.name to VideoCapture()
+    except Exception:
+        return {"message": "There was an error processing the file"}
+    finally:
+        #temp.close()  # the `with` statement above takes care of closing the file
+        os.remove(temp.name)
+
+    #return res
+    cuts = cut_wav(res)
+    transcript = get_transcript(cuts)
+    return {'interview transcript': transcript}
+
 
 
 @app.get("/cut_test")

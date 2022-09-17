@@ -6,5 +6,6 @@ scipy
 struct
 shutil
 speech_recognition
+tempfile
 uvicorn
 wave
