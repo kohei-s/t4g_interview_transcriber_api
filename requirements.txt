@@ -1,0 +1,10 @@
+fastapi
+ffmpeg
+math
+os
+scipy
+struct
+shutil
+speech_recognition
+uvicorn
+wave
