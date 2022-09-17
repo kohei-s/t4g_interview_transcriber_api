@@ -1,6 +1,8 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+#from fastapi.concurrency import run_in_threadpool
 
+import json
 import os
 import ffmpeg
 import shutil
@@ -10,6 +12,8 @@ import math
 import struct
 from scipy import fromstring, int16
 from tempfile import NamedTemporaryFile
+#import aiofiles
+#import asyncio
 
 app = FastAPI()
 
@@ -57,7 +61,8 @@ def cut_wav(wavf):
     outf_list = []
     for i in range(num_cut):
         #output_dir = 'output/cut_wav/'
-        outf = 'output/' + str(i) + '.wav'
+        #outf = 'output/' + str(i) + '.wav'
+        outf = str(i) + '.wav'
         start_cut = i * frames
         end_cut = i * frames + frames
         Y = X[start_cut:end_cut]
@@ -76,8 +81,8 @@ def cut_wav(wavf):
 
 # convert wav to text
 def get_transcript(outf_list):
-    output_text = ''
-    audio_num = len(outf_list)
+    output_text = ""
+    #audio_num = len(outf_list)
 
     for fwav in outf_list:
         try:
@@ -104,7 +109,7 @@ def index():
 
 
 @app.post("/convert_test/")
-async def get_wav_only(file: UploadFile = File(...)):
+def get_wav_only(file: UploadFile = File(...)):
     temp = NamedTemporaryFile(delete=False)
     try:
         try:
@@ -123,10 +128,15 @@ async def get_wav_only(file: UploadFile = File(...)):
         #temp.close()  # the `with` statement above takes care of closing the file
         os.remove(temp.name)
 
-    #return res
+
     cuts = cut_wav(res)
-    transcript = get_transcript(cuts)
-    return {'interview transcript': transcript}
+
+    text = get_transcript(cuts)
+
+    my_dict = {'interview transcript': text}
+    transcript = json.dumps(my_dict)
+
+    return transcript
 
 
 
@@ -141,5 +151,5 @@ def cut_wav_only(file):
 def get_transcript(file):
     wavf = get_wav_only(file)
     cuts = cut_wav(wavf)
-    transcript = get_transcript(cuts)
-    return {'interview transcript': transcript}
+    text = get_transcript(cuts)
+    return {'interview transcript': text}

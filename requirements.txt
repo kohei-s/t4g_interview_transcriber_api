@@ -1,3 +1,5 @@
+aiofiles
+asyncio
 fastapi
 ffmpeg
 math
