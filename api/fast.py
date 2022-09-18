@@ -1,19 +1,16 @@
+import aiofiles
+import asyncio
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-#from fastapi.concurrency import run_in_threadpool
-
-import json
-import os
+from fastapi.concurrency import run_in_threadpool
 import ffmpeg
-import shutil
-import speech_recognition as sr
-import wave
 import math
-import struct
+import os
 from scipy import fromstring, int16
+import speech_recognition as sr
+import struct
 from tempfile import NamedTemporaryFile
-#import aiofiles
-#import asyncio
+import wave
 
 app = FastAPI()
 
@@ -30,20 +27,14 @@ app.add_middleware(
 # functions
 # convert mp4 to wav
 def get_wav(org_file):
-    #if org_file.endwith('.wav'):
-    #wavf = org_file
-    #else:
     stream = ffmpeg.input(org_file)
     stream = ffmpeg.output(stream, 'audio.wav')
     ffmpeg.run(stream, overwrite_output=True)
     wavf = 'audio.wav'
-
     return wavf
-
 
 # sprit wav in parts of 30 sec
 def cut_wav(wavf):
-    time = 30
     wr = wave.open(wavf, 'r')
     ch = wr.getnchannels()
     width = wr.getsampwidth()
@@ -51,17 +42,14 @@ def cut_wav(wavf):
     fn = wr.getnframes()
     total_time = 1.0 * fn / fr
     integer = math.floor(total_time)
-    t = int(time)
-    frames = int(ch * fr * t)
-    num_cut = int(integer // t)
+    frames = int(ch * fr * 30)
+    num_cut = int(integer // 30)
     data = wr.readframes(wr.getnframes())
     wr.close()
     X = fromstring(data, dtype=int16)
 
     outf_list = []
     for i in range(num_cut):
-        #output_dir = 'output/cut_wav/'
-        #outf = 'output/' + str(i) + '.wav'
         outf = str(i) + '.wav'
         start_cut = i * frames
         end_cut = i * frames + frames
@@ -79,12 +67,38 @@ def cut_wav(wavf):
     return outf_list
 
 
-# convert wav to text
-def get_transcript(outf_list):
-    output_text = ""
-    #audio_num = len(outf_list)
+# endpoints
+# define a root '/'
+@app.get("/")
+def index():
+    return {"ok": True}
 
-    for fwav in outf_list:
+
+@app.post("/convert_test/")
+async def get_wav_only(file: UploadFile = File(...)):
+    try:
+        async with aiofiles.tempfile.NamedTemporaryFile("wb",
+                                                        delete=False) as temp:
+            try:
+                contents = await file.read()
+                await temp.write(contents)
+            except Exception:
+                return {"message": "There was an error uploading the file"}
+            finally:
+                await file.close()
+
+        res = await run_in_threadpool(get_wav, temp.name)
+    except Exception:
+        return {"message": "There was an error processing the file"}
+    finally:
+        os.remove(temp.name)
+
+    # use cut_wav func to sprit wav
+    cuts = cut_wav(res)
+
+    # convert wav to text
+    output_text = ''
+    for fwav in cuts:
         try:
             r = sr.Recognizer()
             with sr.AudioFile(fwav) as source:
@@ -98,58 +112,5 @@ def get_transcript(outf_list):
             output_text = output_text + message + '\n'
             os.remove(fwav)
 
-    return output_text
-
-
-# endpoints
-# define a root '/'
-@app.get("/")
-def index():
-    return {"ok": True}
-
-
-@app.post("/convert_test/")
-def get_wav_only(file: UploadFile = File(...)):
-    temp = NamedTemporaryFile(delete=False)
-    try:
-        try:
-            contents = file.file.read()
-            with temp as f:
-                f.write(contents)
-        except Exception:
-            return {"message": "There was an error uploading the file"}
-        finally:
-            file.file.close()
-
-        res = get_wav(temp.name)  # Pass temp.name to VideoCapture()
-    except Exception:
-        return {"message": "There was an error processing the file"}
-    finally:
-        #temp.close()  # the `with` statement above takes care of closing the file
-        os.remove(temp.name)
-
-
-    cuts = cut_wav(res)
-
-    text = get_transcript(cuts)
-
-    my_dict = {'interview transcript': text}
-    transcript = json.dumps(my_dict)
-
+    transcript = {'interview transcript': output_text}
     return transcript
-
-
-
-@app.get("/cut_test")
-def cut_wav_only(file):
-    wavf = get_wav_only(file)
-    cuts = cut_wav(wavf)
-    return cuts
-
-
-@app.get("/transcribe_test")
-def get_transcript(file):
-    wavf = get_wav_only(file)
-    cuts = cut_wav(wavf)
-    text = get_transcript(cuts)
-    return {'interview transcript': text}
