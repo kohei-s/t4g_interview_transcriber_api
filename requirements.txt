@@ -2,11 +2,8 @@ aiofiles
 asyncio
 fastapi
 ffmpeg
-math
-os
+python-multipart
 scipy
-struct
-speech_recognition
-tempfile
+SpeechRecognition
 uvicorn
 wave
