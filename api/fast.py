@@ -97,7 +97,7 @@ async def get_wav_only(file: UploadFile = File(...)):
     cuts = cut_wav(res)
 
     # convert wav to text
-    output_text = ''
+    output_text = '(start) '
     for fwav in cuts:
         try:
             r = sr.Recognizer()
@@ -111,6 +111,6 @@ async def get_wav_only(file: UploadFile = File(...)):
             message = "Could not understand audio"
             output_text = output_text + message + '\n'
             os.remove(fwav)
-
+    output_text = output_text + '(end).'
     transcript = {'interview transcript': output_text}
     return transcript
