@@ -4,6 +4,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 import ffmpeg
+import gzip
 import math
 import os
 from scipy import fromstring, int16
@@ -74,8 +75,8 @@ def index():
     return {"ok": True}
 
 
-@app.post("/convert_test/")
-async def get_wav_only(file: UploadFile = File(...)):
+@app.post("/transcribe_interview/")
+async def get_transcript(file: UploadFile = File(...)):
     try:
         async with aiofiles.tempfile.NamedTemporaryFile("wb",
                                                         delete=False) as temp:
@@ -97,7 +98,7 @@ async def get_wav_only(file: UploadFile = File(...)):
     cuts = cut_wav(res)
 
     # convert wav to text
-    output_text = '(start) '
+    output_text = '***START*** '
     for fwav in cuts:
         try:
             r = sr.Recognizer()
@@ -108,9 +109,14 @@ async def get_wav_only(file: UploadFile = File(...)):
             os.remove(fwav)
 
         except sr.UnknownValueError:
-            message = "Could not understand audio"
+            message = "***COULD NOT UNDERSTAND AUDIO***"
             output_text = output_text + message + '\n'
             os.remove(fwav)
-    output_text = output_text + '(end).'
-    transcript = {'interview transcript': output_text}
-    return transcript
+    output_text = output_text + ' ***END***'
+
+    int_transcript = 'interview_transcript.txt'
+    f = open(int_transcript, 'w')
+    f.write(output_text)
+    f.close()
+    #{'Interview transcript': com_data}
+    return int_transcript
