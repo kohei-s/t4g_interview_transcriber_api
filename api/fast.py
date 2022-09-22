@@ -4,7 +4,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 import ffmpeg
-import gzip
+#import gzip
 import math
 import os
 from scipy import fromstring, int16
